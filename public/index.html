@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>MCP ChatBot</title>
+
+	<link rel="stylesheet" href="https://cdn.dhtmlx.com/chatbot/latest/chatbot.css">
+	<script src="https://cdn.dhtmlx.com/chatbot/latest/chatbot.js"></script>
+
+	<style>
+		html, body { height: 100%; margin: 0; }
+	</style>
+</head>
+<body>
+	<div id="chat" style="height: 100vh;"></div>
+
+	<script>
+		const messages = [];
+
+		new chatbot.ChatBot("#chat", {
+			sidebar: false,
+			format: "markdown",
+			messages,
+			agents: [
+				{
+					id: 100,
+					name: "HAL",
+					avatar: "https://cdn.dhtmlx.com/datasets/avatars/avatar-c2.jpg",
+					response: async (allMessages) => {
+						const lastMessage = allMessages[allMessages.length - 1];
+
+						const response = await fetch("/api/chat", {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json"
+							},
+							body: JSON.stringify({
+								message: lastMessage.content
+							})
+						});
+
+						const data = await response.json();
+
+						if (!response.ok) {
+							return {
+								id: Date.now(),
+								role: "agent",
+								content: data.error || "Server error"
+							};
+						}
+
+						return {
+							id: Date.now(),
+							role: "agent",
+							content: data.answer
+						};
+					}
+				}
+			]
+		});
+	</script>
+</body>
+</html>
