@@ -153,6 +153,24 @@ function sendJson(res, payload, statusCode = 200) {
 	res.end(json);
 }
 
+app.get('/', (req, res) => {
+	res.status(200).send('ok');
+});
+
+app.options('/', (req, res) => {
+	res.status(204);
+	res.setHeader('Access-Control-Allow-Origin', '*');
+	res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+	res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Mcp-Session-Id');
+	res.end();
+});
+
+app.post('/', (req, res, next) => {
+	// Forward MCP POST / to the same handler as POST /mcp
+	req.url = '/mcp';
+	next();
+});
+
 app.get('/mcp', (req, res) => {
 	res.status(200).send('ok');
 });
