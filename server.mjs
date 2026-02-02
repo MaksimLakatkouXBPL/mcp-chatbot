@@ -242,6 +242,28 @@ app.post('/mcp', async (req, res) => {
 			req.header('Mcp-Session-Id') ??
 			req.header('mcp-session-id') ??
 			null;
+			
+		if (rpc.method.startsWith('notifications/')) {
+			const upstreamSessionId = clientSessionId ? sessionMap.get(clientSessionId) : null;
+
+			// No session yet -> still OK
+			if (!upstreamSessionId) {
+				return res.status(204).end();
+			}
+
+			await fetch(mcpUrl, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Accept: 'application/json, text/event-stream',
+					'Mcp-Session-Id': upstreamSessionId,
+				},
+				body: JSON.stringify(rpc),
+			});
+
+			res.setHeader('Mcp-Session-Id', clientSessionId);
+			return res.status(204).end();
+		}
 
 		if (rpc.method === 'initialize') {
 			const { upstreamSessionId, payload } = await callUpstreamMcp({
