@@ -175,6 +175,24 @@ app.get('/mcp', (req, res) => {
 	res.status(200).send('ok');
 });
 
+app.get('/.well-known/mcp', (req, res) => {
+	res.status(200).send('ok');
+});
+
+app.options('/.well-known/mcp', (req, res) => {
+	res.status(204);
+	res.setHeader('Access-Control-Allow-Origin', '*');
+	res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+	res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Mcp-Session-Id');
+	res.end();
+});
+
+app.post('/.well-known/mcp', (req, res, next) => {
+	// Forward MCP POST /.well-known/mcp to the same handler as POST /mcp
+	req.url = '/mcp';
+	next();
+});
+
 app.options('/mcp', (req, res) => {
 	res.status(204);
 	res.setHeader('Access-Control-Allow-Origin', '*');
