@@ -59,7 +59,13 @@ async function mcpInitialize() {
 	return sessionId;
 }
 
-async function mcpInference({ sessionId, query, mode = 'generation', include = ['gantt'] }) {
+async function mcpInference({ sessionId, query, mode = 'generation', include = null }) {
+	const request = {
+		query,
+		mode,
+		...(include ? { include } : {}),
+	};
+
 	const response = await fetch(mcpUrl, {
 		method: 'POST',
 		headers: {
@@ -74,11 +80,7 @@ async function mcpInference({ sessionId, query, mode = 'generation', include = [
 			params: {
 				name: 'Inference',
 				arguments: {
-					request: {
-						query,
-						mode,
-						include,
-					},
+					request,
 				},
 			},
 		}),
@@ -142,16 +144,25 @@ async function callUpstreamMcp({ upstreamSessionId, rpc }) {
 	};
 }
 
+function sendJson(res, payload, statusCode = 200) {
+	const json = JSON.stringify(payload);
+
+	res.status(statusCode);
+	res.setHeader('Content-Type', 'application/json');
+	res.setHeader('Content-Length', Buffer.byteLength(json));
+	res.end(json);
+}
+
 app.post('/mcp', async (req, res) => {
 	try {
 		const rpc = req.body;
 
 		if (!rpc || typeof rpc !== 'object' || typeof rpc.method !== 'string') {
-			return res.status(400).json({
+			return sendJson(res, {
 				jsonrpc: '2.0',
 				id: null,
 				error: { code: -32600, message: 'Invalid Request' },
-			});
+			}, 400);
 		}
 
 		const clientSessionId =
@@ -166,28 +177,31 @@ app.post('/mcp', async (req, res) => {
 			});
 
 			if (!upstreamSessionId) {
-				return res.status(500).json({
+				return sendJson(res, {
 					jsonrpc: '2.0',
 					id: rpc.id ?? null,
 					error: { code: -32000, message: 'Upstream did not return Mcp-Session-Id' },
-				});
+				}, 500);
 			}
 
 			const proxySessionId = generateSessionId();
 			sessionMap.set(proxySessionId, upstreamSessionId);
 
 			res.setHeader('Mcp-Session-Id', proxySessionId);
-			return res.json(payload);
+			return sendJson(res, payload);
 		}
 
 		const upstreamSessionId = clientSessionId ? sessionMap.get(clientSessionId) : null;
 
 		if (!upstreamSessionId) {
-			return res.status(400).json({
+			return sendJson(res, {
 				jsonrpc: '2.0',
 				id: rpc.id ?? null,
-				error: { code: -32000, message: 'Missing or unknown Mcp-Session-Id. Call initialize first.' },
-			});
+				error: {
+					code: -32000,
+					message: 'Missing or unknown Mcp-Session-Id. Call initialize first.',
+				},
+			}, 400);
 		}
 
 		const { payload } = await callUpstreamMcp({
@@ -196,13 +210,13 @@ app.post('/mcp', async (req, res) => {
 		});
 
 		res.setHeader('Mcp-Session-Id', clientSessionId);
-		return res.json(payload);
+		return sendJson(res, payload);
 	} catch (error) {
-		return res.status(500).json({
+		return sendJson(res, {
 			jsonrpc: '2.0',
 			id: null,
 			error: { code: -32000, message: error instanceof Error ? error.message : String(error) },
-		});
+		}, 500);
 	}
 });
 
