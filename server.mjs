@@ -2,31 +2,6 @@ import express from 'express';
 
 const app = express();
 app.use(express.json());
-
-app.use((req, res, next) => {
-	// Log only MCP-related paths to see what Lovable actually calls
-	const isMcpProbe =
-		req.path === '/' ||
-		req.path === '/mcp' ||
-		req.path === '/.well-known/mcp';
-
-	if (!isMcpProbe) {
-		return next();
-	}
-
-	console.log('lovable -> proxy', {
-		method: req.method,
-		path: req.path,
-		accept: req.header('accept'),
-		contentType: req.header('content-type'),
-		mcpSessionId: req.header('mcp-session-id') ?? req.header('Mcp-Session-Id') ?? null,
-		userAgent: req.header('user-agent'),
-		body: req.body ?? null,
-	});
-
-	return next();
-});
-
 app.use(express.static('public'));
 
 const mcpUrl = 'https://docs.dhtmlx.com/mcp';
@@ -198,24 +173,6 @@ app.post('/', (req, res, next) => {
 
 app.get('/mcp', (req, res) => {
 	res.status(200).send('ok');
-});
-
-app.get('/.well-known/mcp', (req, res) => {
-	res.status(200).send('ok');
-});
-
-app.options('/.well-known/mcp', (req, res) => {
-	res.status(204);
-	res.setHeader('Access-Control-Allow-Origin', '*');
-	res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-	res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Mcp-Session-Id');
-	res.end();
-});
-
-app.post('/.well-known/mcp', (req, res, next) => {
-	// Forward MCP POST /.well-known/mcp to the same handler as POST /mcp
-	req.url = '/mcp';
-	next();
 });
 
 app.options('/mcp', (req, res) => {
